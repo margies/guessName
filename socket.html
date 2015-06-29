@@ -291,8 +291,12 @@
       </div>
     </div>
 
-
-    
+    <script type="text/javascript">
+      function exitConfirmation() {
+          return '確定要離開嗎?';
+      }
+      window.onbeforeunload = exitConfirmation;
+    </script>
 
   </body>
 </html>
