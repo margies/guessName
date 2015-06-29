@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="//getbootstrap.com/dist/css/bootstrap.min.css" />
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.0.0-rc2/js/bootstrap.min.js"></script>
+    <title>猜名字</title>
+
+    <style type="text/css">
+      .title{
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        margin-left: 20px;
+      }
+      .memberList{
+        width: 700px;
+        
+        background-color: #e7e7eb;
+        margin-bottom: 20px;
+      }
+      #member{
+        height: 40px;
+        margin-bottom: 20px;
+        font-size: 18px;
+        margin-left: 10px;
+      }
+      #index{
+        margin-top: 10px;
+      }
+      .form-control{
+        display: inline-block;
+        width: 100px;
+      }
+      .hidden{
+        display: none;
+      }
+      #questionBlock{
+        margin-top: 30px;
+      }
+      #outer{
+        width: 700px;
+        margin:0px auto;
+      }
+      .textStyle{
+        font-size: 18px;
+        line-height: 34px;
+      }
+      .btn1{
+        margin-bottom: 20px;
+        margin-left: 20px;
+      }
+      .btn{
+        margin-left: 20px;
+      }
+      #qList{
+        margin-top: 30px;
+      }
+      .nameCol{
+        
+      }
+      .bolder{
+        font-weight: bold;
+      }
+      .qCol{
+        
+      }
+      .table{
+        width:500px;
+        margin:0px auto;
+        text-align: center;
+      }
+      .note{
+        width:500px;
+        margin-top: 10px;
+      }
+      #note{
+        margin-top: 30px;
+      }
+      .texter{
+        width:130px;
+      }
+      .footer{
+        background-color: #fff1cf;
+        width: 700px;
+        margin: 0px auto;
+        margin-top: 70px;
+      }
+    </style>
+
+  </head>
+  <body>
+    <script>
+
+      // connect to server
+      var socket = io.connect();
+
+      var selfName = "";
+
+      // when receive new member, add to list
+      socket.on('member', function(data) {
+        var member = $("#member").html();
+        $('#member').html(member+"&nbsp;&nbsp;&nbsp;"+data);
+      });
+
+      // show member index
+      socket.on('memberIndex', function(data) {
+        //$('#index').html("你是第" + data + "位參加者");
+      });
+
+      // when connected to server, show intial member list
+      socket.on('initialMember', function(data){ 
+        var member = $("#member").html();
+        $('#member').html(data);
+      });
+
+      // when everyone finished question detected
+      socket.on('qDone', function(data){
+
+        alert("大家都出完題目了，遊戲開始囉！");
+        console.log(data);
+
+
+        var tempHtml = "";
+        tempHtml = tempHtml + '<table class="table table-bordered">';
+        tempHtml = tempHtml + '<tr><td class="nameCol bolder"></td><td class="qCol">題目</td><td class="nameCol">出題者</td></tr>';
+        var questionMemberPairs = JSON.parse(data.questionMemberPair);
+
+        for(key in questionMemberPairs){
+          //alert(key);
+          // won't print self question
+          tempHtml = tempHtml + '<tr>';
+          if(key == selfName){
+
+            tempHtml = tempHtml + '<td class="bolder">我</td>';
+            tempHtml = tempHtml + '<td></td>';
+            tempHtml = tempHtml + '<td class="bolder">' + questionMemberPairs[key]['questioner'] + '</td>';
+
+          }else{
+
+            tempHtml = tempHtml + '<td>' + key + '</td>';
+            tempHtml = tempHtml + '<td>' + questionMemberPairs[key]['question'] + '</td>';
+            tempHtml = tempHtml + '<td>' + questionMemberPairs[key]['questioner'] + '</td>';
+
+          }
+          tempHtml = tempHtml + '</tr>';
+        }
+
+        tempHtml = tempHtml + '</table>';
+        //alert(tempHtml);
+        $("#qList").html(tempHtml);
+
+      });
+
+      // when error detected
+      socket.on('errors', function(data){ 
+        alert(data);
+      });
+
+      // when reset detected
+      socket.on('reset', function(data){ 
+        $('#people').html("人到齊了！");
+        document.getElementById("people").disabled = false;
+        document.getElementById("question").disabled = false;
+        document.getElementById("reset").disabled = true;
+        document.getElementById("qButton").disabled = false;
+
+        var name = $("#text").val();
+        if(name == ""){
+          document.getElementById("text").disabled = false;
+          document.getElementById("nameButton").disabled = false;
+        }
+      });
+
+      // when server says the game can start
+      socket.on('gameStarting', function(data){ 
+        var people = $("#people").html();
+        $('#people').html("大家都出完題目就開始囉");
+        document.getElementById("people").disabled = true;
+        document.getElementById("text").disabled = true;
+        document.getElementById("nameButton").disabled = true;
+        document.getElementById("reset").disabled = false;
+      });
+
+      // function for sending name
+      function senting(){
+        var name = $("#text").val();
+        selfName = name;
+        if(name == ""){
+          alert("沒有打名字捏");
+        }else{
+          socket.emit('client_data', {
+            'member': name
+          });
+          document.getElementById("text").disabled = true;
+          document.getElementById("nameButton").disabled = true;
+          $("#questionBlock").attr("class","");
+        }
+        
+      }
+
+      // function for sending question
+      function sentQ(){
+        var name = $("#question").val();
+        if(name == ""){
+          alert("沒有出題目捏");
+        }else{
+          socket.emit('question', {
+            'question': name
+          });
+          document.getElementById("question").disabled = true;
+          document.getElementById("qButton").disabled = true;
+        }
+      }
+
+      // function for sending question
+      function people(){
+        if(window.confirm("確定都到齊了嗎？")){
+          socket.emit('gameStart',"1");
+        }
+      }
+
+      // function for reset
+      function reset(){
+        if(window.confirm("確定重新開始？")){
+          socket.emit('reset',"1");
+
+          $('#people').html("人到齊了！");
+          var name = $("#text").val();
+          if(name == ""){
+            document.getElementById("text").disabled = false;
+          }
+          document.getElementById("people").disabled = false;
+          document.getElementById("question").disabled = false;
+          document.getElementById("reset").disabled = true;
+          document.getElementById("qButton").disabled = false;
+
+        }
+        
+      }
+
+      
+      $(document).ready(function(){
+
+
+      });
+    </script>
+
+    <div id="outer">
+      <div class="memberList">
+        <br />
+        <div class="title">目前參加者：</div>
+        <div id="member"></div>
+        <div>
+          <button onclick="people();" id="people" class="btn btn-success btn1">人到齊了！</button>
+          <button onclick="reset();" id="reset" class="btn btn-danger btn1" disabled>重玩一局</button>
+        </div>
+        
+      </div>
+      
+      <font class="textStyle">名字&nbsp;&nbsp;<input type="text" class="form-control texter" id="text" /></font>
+      <button onclick="senting();" id="nameButton" class="btn btn-default">send</button>
+      <div id="index"></div>
+
+      <div id="questionBlock" class="hidden ">
+        <font class="textStyle">題目&nbsp;&nbsp;<input type="text" class="form-control texter" id="question" /></font>
+        <button onclick="sentQ();" id="qButton" class="btn btn-default">send</button>
+      </div>
+
+      <div id="qList">
+        
+      </div>
+      <div id="note">
+        筆記區<br /><textarea class="note form-control" rows="5"></textarea>
+      </div>
+
+      <div class="footer">
+        <br />
+        <font style="color:#b94047; font-weight:bold; font-size:15px;">&nbsp;&nbsp;&nbsp;&nbsp;<span class="glyphicon glyphicon-star" aria-hidden="true"></span>&nbsp;&nbsp;使用說明</font><br />
+        <ol>
+          <li>「人到齊了」和「重玩一局」的按鈕只要一個人負責按就可以了</li>
+          <li>人都到齊之後就可以按「人到齊了！」按鈕，等到大家都出完題目遊戲就會自動開始。</li>
+          <li>進場順序會等於出題方向，假設進場順序是A->B->C，就會是A出題給B猜，以下類推。</li>
+          <li>「重玩一局」按鈕會讓題目清單清空，但成員清單不會清空，已經在遊戲中的成員可以直接出新題目，<br />新成員也可以在人到齊之前加入遊戲。</li>
+          <li>筆記區僅供紀錄用，不會讓別人看到</li>
+          <li>有bug的話跟斯汀說QQ</li>
+        </ol>
+        <br />
+      </div>
+    </div>
+
+
+    
+
+  </body>
+</html>
